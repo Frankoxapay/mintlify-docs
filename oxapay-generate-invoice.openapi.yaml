@@ -1,0 +1,763 @@
+openapi: 3.1.0
+info:
+  title: OxaPay Generate Invoice API
+  version: "1.0.0"
+  summary: OpenAPI specification for OxaPay v1 Generate Invoice
+  description: |-
+    A focused OpenAPI 3.1 specification for OxaPay's **Generate Invoice** endpoint.
+
+    This operation creates a hosted OxaPay invoice and returns a `track_id` plus a
+    `payment_url` that can be presented to the payer.
+
+    Important behavioral notes from OxaPay documentation:
+
+    * Authentication uses the `merchant_api_key` HTTP request header.
+    * Requests are JSON (`Content-Type: application/json`).
+    * If `currency` is omitted, `amount` is interpreted in USD.
+    * `lifetime` is expressed in minutes and must be between 15 and 2880; the documented default is 60.
+    * `fee_paid_by_payer`, `under_paid_coverage`, and `mixed_payment` can inherit the Merchant setting when omitted.
+    * `to_currency`, when used for automatic conversion of paid crypto, currently supports conversion to USDT.
+    * `callback_url`, when supplied, receives signed payment status callbacks. OxaPay signs the raw callback body using HMAC-SHA512 with the Merchant API Key as the shared secret and sends the signature in the `HMAC` header.
+    * OxaPay expects a successful callback handler to return HTTP 200 with an `OK`/`ok` response body. Failed deliveries may be retried.
+
+    Source documentation was cross-checked against OxaPay's current API Reference,
+    Error documentation, Webhook documentation, and official SDK documentation.
+  contact:
+    name: OxaPay
+    url: https://oxapay.com
+  x-generated-on: "2026-09-07"
+  x-source-documentation:
+    - https://docs.oxapay.com/api-reference/payment/generate-invoice
+    - https://docs.oxapay.com/api-reference/error
+    - https://docs.oxapay.com/webhook
+    - https://docs.oxapay.com/welcome-to-oxapay/integrations/sdks/python-sdk
+externalDocs:
+  description: OxaPay Generate Invoice documentation
+  url: https://docs.oxapay.com/api-reference/payment/generate-invoice
+servers:
+  - url: https://api.oxapay.com/v1
+    description: OxaPay API v1
+tags:
+  - name: Payment
+    description: Merchant payment operations
+paths:
+  /payment/invoice:
+    post:
+      tags:
+        - Payment
+      operationId: generateInvoice
+      summary: Generate Invoice
+      description: |-
+        Generates a new hosted payment invoice and returns a payment URL.
+
+        The payer can open the returned `payment_url`, choose a supported cryptocurrency/network,
+        and complete payment through OxaPay.
+
+        Authentication is required through the `merchant_api_key` header. The request body must
+        be JSON. Only `amount` is required; all other request-body fields are optional.
+      security:
+        - MerchantApiKeyAuth: []
+      requestBody:
+        required: true
+        description: Invoice generation options.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateInvoiceRequest'
+            examples:
+              full:
+                summary: Full-featured invoice request
+                value:
+                  amount: 100
+                  currency: USD
+                  lifetime: 60
+                  fee_paid_by_payer: 1
+                  under_paid_coverage: 10
+                  to_currency: USDT
+                  auto_withdrawal: false
+                  mixed_payment: true
+                  callback_url: https://example.com/webhooks/oxapay
+                  return_url: https://example.com/orders/ORD-12345/thank-you
+                  email: customer@example.com
+                  order_id: ORD-12345
+                  thanks_message: Thank you for your payment.
+                  description: Order #ORD-12345
+                  sandbox: false
+              minimal:
+                summary: Minimal request
+                value:
+                  amount: 25
+      responses:
+        '200':
+          description: Invoice generated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateInvoiceResponse'
+              examples:
+                success:
+                  summary: Successful invoice creation
+                  value:
+                    data:
+                      track_id: "184747701"
+                      payment_url: https://pay.oxapay.com/12373985/184747701
+                      expired_at: 1734546589
+                      date: 1734510589
+                    message: Operation completed successfully!
+                    error: {}
+                    status: 200
+                    version: 1.0.0
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+      callbacks:
+        paymentStatus:
+          '{$request.body#/callback_url}':
+            post:
+              summary: OxaPay payment status callback
+              description: |-
+                OxaPay sends a JSON callback to the supplied `callback_url` when payment status changes.
+                Current webhook documentation specifically describes callbacks for paying and paid states.
+
+                Validate the `HMAC` header against an HMAC-SHA512 digest of the **raw request body**,
+                using the Merchant API Key as the shared secret. Do not calculate the signature from
+                re-serialized JSON because byte-level changes can invalidate the digest.
+
+                OxaPay expects an HTTP 200 response with `OK`/`ok` content. Delivery can be retried
+                if the callback is not acknowledged successfully.
+              parameters:
+                - $ref: '#/components/parameters/WebhookHmacHeader'
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/PaymentWebhookPayload'
+                    examples:
+                      paying:
+                        summary: Payment submitted and awaiting confirmation
+                        value:
+                          track_id: "151811887"
+                          status: Paying
+                          type: invoice
+                          module_name: OxaPay
+                          amount: 10
+                          value: 3.6839
+                          sent_value: 3.6839
+                          currency: POL
+                          order_id: ORD-12345
+                          email: customer@example.com
+                          note: ""
+                          fee_paid_by_payer: 0
+                          under_paid_coverage: 0
+                          description: Test Description
+                          date: 1738493900
+                          txs:
+                            - status: confirming
+                              tx_hash: x
+                              sent_amount: 10
+                              received_amount: 9.85
+                              value: 3.6839
+                              sent_value: 3.6839
+                              currency: POL
+                              network: Polygon Network
+                              sender_address: x
+                              address: x
+                              rate: 0.36839
+                              confirmations: 10
+                              auto_convert_amount: 0
+                              auto_convert_currency: USDT
+                              date: 1738494035
+                      paid:
+                        summary: Confirmed and credited payment
+                        value:
+                          track_id: "151811887"
+                          status: Paid
+                          type: invoice
+                          module_name: OxaPay
+                          amount: 10
+                          value: 3.6839
+                          sent_value: 3.6839
+                          currency: POL
+                          order_id: ORD-12345
+                          email: customer@example.com
+                          note: ""
+                          fee_paid_by_payer: 0
+                          under_paid_coverage: 0
+                          description: Test Description
+                          date: 1738493900
+                          txs:
+                            - status: confirmed
+                              tx_hash: x
+                              sent_amount: 10
+                              received_amount: 9.85
+                              value: 3.6839
+                              sent_value: 3.6839
+                              currency: POL
+                              network: Polygon Network
+                              sender_address: x
+                              address: x
+                              rate: 0.36839
+                              confirmations: 250
+                              auto_convert_amount: 3.62864
+                              auto_convert_currency: USDT
+                              date: 1738494035
+              responses:
+                '200':
+                  description: Callback accepted by the merchant.
+                  content:
+                    text/plain:
+                      schema:
+                        type: string
+                      example: OK
+                '400':
+                  description: Callback rejected, for example because HMAC validation failed.
+                  content:
+                    text/plain:
+                      schema:
+                        type: string
+                      example: Invalid HMAC signature
+      x-codeSamples:
+        - lang: cURL
+          label: cURL
+          source: |-
+            curl -X POST 'https://api.oxapay.com/v1/payment/invoice' \
+              -H 'merchant_api_key: YOUR_MERCHANT_API_KEY' \
+              -H 'Content-Type: application/json' \
+              --data-raw '{
+                "amount": 100,
+                "currency": "USD",
+                "lifetime": 60,
+                "fee_paid_by_payer": 1,
+                "under_paid_coverage": 10,
+                "to_currency": "USDT",
+                "auto_withdrawal": false,
+                "mixed_payment": true,
+                "callback_url": "https://example.com/webhooks/oxapay",
+                "return_url": "https://example.com/orders/ORD-12345/thank-you",
+                "email": "customer@example.com",
+                "order_id": "ORD-12345",
+                "thanks_message": "Thank you for your payment.",
+                "description": "Order #ORD-12345",
+                "sandbox": false
+              }'
+        - lang: Python
+          label: Python (requests)
+          source: |-
+            import requests
+
+            url = "https://api.oxapay.com/v1/payment/invoice"
+            headers = {
+                "merchant_api_key": "YOUR_MERCHANT_API_KEY",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "amount": 100,
+                "currency": "USD",
+                "lifetime": 60,
+                "fee_paid_by_payer": 1,
+                "under_paid_coverage": 10,
+                "to_currency": "USDT",
+                "auto_withdrawal": False,
+                "mixed_payment": True,
+                "callback_url": "https://example.com/webhooks/oxapay",
+                "return_url": "https://example.com/orders/ORD-12345/thank-you",
+                "email": "customer@example.com",
+                "order_id": "ORD-12345",
+                "thanks_message": "Thank you for your payment.",
+                "description": "Order #ORD-12345",
+                "sandbox": False,
+            }
+
+            response = requests.post(url, headers=headers, json=payload, timeout=30)
+            response.raise_for_status()
+            result = response.json()
+
+            print(result["data"]["track_id"])
+            print(result["data"]["payment_url"])
+        - lang: JavaScript
+          label: Node.js (fetch)
+          source: |-
+            const response = await fetch("https://api.oxapay.com/v1/payment/invoice", {
+              method: "POST",
+              headers: {
+                "merchant_api_key": process.env.OXAPAY_MERCHANT_API_KEY,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                amount: 100,
+                currency: "USD",
+                lifetime: 60,
+                fee_paid_by_payer: 1,
+                under_paid_coverage: 10,
+                to_currency: "USDT",
+                auto_withdrawal: false,
+                mixed_payment: true,
+                callback_url: "https://example.com/webhooks/oxapay",
+                return_url: "https://example.com/orders/ORD-12345/thank-you",
+                email: "customer@example.com",
+                order_id: "ORD-12345",
+                thanks_message: "Thank you for your payment.",
+                description: "Order #ORD-12345",
+                sandbox: false,
+              }),
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+              throw new Error(result?.error?.message ?? `OxaPay HTTP ${response.status}`);
+            }
+
+            console.log(result.data.track_id);
+            console.log(result.data.payment_url);
+        - lang: PHP
+          label: PHP (cURL)
+          source: |-
+            <?php
+            $url = 'https://api.oxapay.com/v1/payment/invoice';
+            $payload = [
+                'amount' => 100,
+                'currency' => 'USD',
+                'lifetime' => 60,
+                'fee_paid_by_payer' => 1,
+                'under_paid_coverage' => 10,
+                'to_currency' => 'USDT',
+                'auto_withdrawal' => false,
+                'mixed_payment' => true,
+                'callback_url' => 'https://example.com/webhooks/oxapay',
+                'return_url' => 'https://example.com/orders/ORD-12345/thank-you',
+                'email' => 'customer@example.com',
+                'order_id' => 'ORD-12345',
+                'thanks_message' => 'Thank you for your payment.',
+                'description' => 'Order #ORD-12345',
+                'sandbox' => false,
+            ];
+
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'merchant_api_key: YOUR_MERCHANT_API_KEY',
+                    'Content-Type: application/json',
+                ],
+                CURLOPT_POSTFIELDS => json_encode($payload),
+            ]);
+
+            $body = curl_exec($ch);
+            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            $result = json_decode($body, true);
+            if ($status < 200 || $status >= 300) {
+                throw new RuntimeException($result['error']['message'] ?? "OxaPay HTTP $status");
+            }
+
+            echo $result['data']['payment_url'];
+components:
+  securitySchemes:
+    MerchantApiKeyAuth:
+      type: apiKey
+      in: header
+      name: merchant_api_key
+      description: |-
+        OxaPay Merchant API Key used for authentication and authorization.
+        Obtain it from the Merchant Service area of your OxaPay account.
+  parameters:
+    WebhookHmacHeader:
+      name: HMAC
+      in: header
+      required: true
+      description: |-
+        HMAC-SHA512 signature of the raw callback request body, generated using the
+        Merchant API Key as the shared secret. Hex-encoded SHA-512 digests are 128 hexadecimal characters.
+      schema:
+        type: string
+        pattern: '^[A-Fa-f0-9]{128}$'
+      example: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  schemas:
+    GenerateInvoiceRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - amount
+      properties:
+        amount:
+          type: number
+          description: |-
+            Payment amount. If `currency` is omitted, the amount must be specified in USD.
+            If `currency` is supplied, this amount is interpreted in that currency.
+          examples:
+            - 100
+        currency:
+          type: string
+          minLength: 1
+          description: |-
+            Currency symbol used to denominate the invoice amount. OxaPay supports both
+            cryptocurrency and fiat currency symbols. If omitted, `amount` is interpreted in USD.
+          examples:
+            - USD
+            - USDT
+        lifetime:
+          type: integer
+          minimum: 15
+          maximum: 2880
+          default: 60
+          description: Expiration lifetime of the payment link, in minutes.
+          examples:
+            - 60
+        fee_paid_by_payer:
+          type: number
+          enum:
+            - 0
+            - 1
+          description: |-
+            Controls who pays the invoice commission. `1` means the payer covers the fee;
+            `0` means the merchant covers it. If omitted, OxaPay uses the Merchant setting.
+          examples:
+            - 1
+          x-default-behavior: Merchant setting
+        under_paid_coverage:
+          type: number
+          minimum: 0
+          maximum: 60
+          description: |-
+            Maximum acceptable underpayment/inaccuracy threshold. OxaPay documentation
+            constrains this value to the 0–60 range. If omitted, the Merchant setting is used.
+          examples:
+            - 10
+          x-default-behavior: Merchant setting
+        to_currency:
+          type: string
+          enum:
+            - USDT
+          description: |-
+            Target cryptocurrency for automatic conversion of received crypto. OxaPay's
+            Generate Invoice documentation states that paid cryptocurrencies can only be converted to USDT.
+          examples:
+            - USDT
+        auto_withdrawal:
+          type: boolean
+          description: |-
+            When enabled, received currency is sent to the configured address in the OxaPay
+            Address List / Settings. When disabled, the received amount is credited to the OxaPay balance.
+            Although some prose describes this as 1/0 behavior, the v1 request schema documents this field as boolean.
+          examples:
+            - false
+        mixed_payment:
+          type: boolean
+          description: |-
+            Whether the payer may cover a remaining underpaid amount using another currency.
+            `true` allows paying the remainder with a different coin; `false` does not.
+            If omitted, OxaPay uses the Merchant setting.
+          examples:
+            - true
+          x-default-behavior: Merchant setting
+        callback_url:
+          type: string
+          format: uri
+          description: |-
+            Public callback URL that receives JSON payment-status notifications from OxaPay.
+            OxaPay webhook documentation notes that callbacks are not sent to private-network endpoints such as localhost.
+          examples:
+            - https://example.com/webhooks/oxapay
+        return_url:
+          type: string
+          format: uri
+          description: URL to which the payer is redirected after a successful payment.
+          examples:
+            - https://example.com/orders/ORD-12345/thank-you
+        email:
+          type: string
+          format: email
+          description: Payer email address, primarily for reporting purposes.
+          examples:
+            - customer@example.com
+        order_id:
+          type: string
+          description: Unique order/reference identifier from the merchant's own system.
+          examples:
+            - ORD-12345
+        thanks_message:
+          type: string
+          description: Brief thank-you note displayed to the payer after successful payment.
+          examples:
+            - Thank you for your payment.
+        description:
+          type: string
+          description: Order details or additional information shown in OxaPay reports.
+          examples:
+            - Order #ORD-12345
+        sandbox:
+          type: boolean
+          description: |-
+            Whether the API request should operate in sandbox/test mode. Set `true` for testing
+            and `false` for live transactions.
+          examples:
+            - false
+    GenerateInvoiceResponse:
+      type: object
+      required:
+        - data
+        - message
+        - error
+        - status
+        - version
+      properties:
+        data:
+          $ref: '#/components/schemas/GenerateInvoiceData'
+        message:
+          type: string
+          description: Human-readable result message.
+          examples:
+            - Operation completed successfully!
+        error:
+          $ref: '#/components/schemas/ApiErrorDetails'
+        status:
+          type: integer
+          description: API response status code carried in the response body.
+          examples:
+            - 200
+        version:
+          type: string
+          description: OxaPay API response version.
+          examples:
+            - 1.0.0
+    GenerateInvoiceData:
+      type: object
+      required:
+        - track_id
+        - payment_url
+        - expired_at
+        - date
+      properties:
+        track_id:
+          type: string
+          description: Unique identifier for the generated payment session/invoice.
+          examples:
+            - "184747701"
+        payment_url:
+          type: string
+          format: uri
+          description: Hosted OxaPay payment-page URL to present or redirect the payer to.
+          examples:
+            - https://pay.oxapay.com/12373985/184747701
+        expired_at:
+          type: integer
+          format: int64
+          description: Unix timestamp, in seconds, when the invoice/payment link expires.
+          examples:
+            - 1734546589
+        date:
+          type: integer
+          format: int64
+          description: Unix timestamp, in seconds, when the invoice was created.
+          examples:
+            - 1734510589
+    ApiErrorDetails:
+      type: object
+      description: |-
+        Error details. Successful responses commonly return an empty object (`{}`).
+        Error responses can include `type`, `key`, and `message`.
+      properties:
+        type:
+          type: string
+          description: Error category/type.
+        key:
+          type: string
+          description: Field or logical key associated with the error.
+        message:
+          type: string
+          description: Human-readable error detail.
+      additionalProperties: true
+    ErrorResponse:
+      type: object
+      required:
+        - data
+        - message
+        - error
+        - status
+        - version
+      properties:
+        data:
+          type: object
+          description: Usually an empty object for API errors.
+          additionalProperties: true
+        message:
+          type: string
+          description: Human-readable result message.
+        error:
+          $ref: '#/components/schemas/ApiErrorDetails'
+        status:
+          type: integer
+          description: HTTP/API status code.
+        version:
+          type: string
+          description: OxaPay API response version.
+    PaymentWebhookPayload:
+      type: object
+      description: |-
+        Merchant payment callback payload. OxaPay states that the body is similar to the
+        Payment Information data and provides Paying/Paid invoice samples in its webhook documentation.
+      required:
+        - track_id
+        - status
+        - type
+        - amount
+        - currency
+        - date
+        - txs
+      properties:
+        track_id:
+          type: string
+        status:
+          type: string
+          description: Payment state. Current OxaPay webhook examples include `Paying` and `Paid`.
+          examples:
+            - Paying
+            - Paid
+        type:
+          type: string
+          description: Input transaction type. For callbacks created by this endpoint, this is `invoice`.
+          examples:
+            - invoice
+        module_name:
+          type: string
+          examples:
+            - OxaPay
+        amount:
+          type: number
+          description: Invoice/payment amount.
+        value:
+          type: number
+          description: Value reported by OxaPay for the payment.
+        sent_value:
+          type: number
+          description: Value sent by the payer as reported by OxaPay.
+        currency:
+          type: string
+        order_id:
+          type: string
+        email:
+          type: string
+        note:
+          type: string
+        fee_paid_by_payer:
+          description: |-
+            Fee-paid-by-payer indicator. OxaPay webhook examples use numeric `0`, while
+            accompanying documentation describes the value as boolean, so both representations are accepted here.
+          oneOf:
+            - type: boolean
+            - type: integer
+              enum: [0, 1]
+        under_paid_coverage:
+          type: number
+        description:
+          type: string
+        date:
+          type: integer
+          format: int64
+          description: Unix timestamp in seconds.
+        txs:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentWebhookTransaction'
+      additionalProperties: true
+    PaymentWebhookTransaction:
+      type: object
+      properties:
+        status:
+          type: string
+          examples:
+            - confirming
+            - confirmed
+        tx_hash:
+          type: string
+        sent_amount:
+          type: number
+        received_amount:
+          type: number
+        value:
+          type: number
+        sent_value:
+          type: number
+        currency:
+          type: string
+        network:
+          type: string
+        sender_address:
+          type: string
+        address:
+          type: string
+        rate:
+          type: number
+        confirmations:
+          type: integer
+        auto_convert_amount:
+          type: number
+        auto_convert_currency:
+          type: string
+        date:
+          type: integer
+          format: int64
+      additionalProperties: true
+  responses:
+    BadRequest:
+      description: |-
+        Bad Request. The request is invalid or malformed, for example because a required field
+        is missing, a value is outside its allowed range, or a supplied value is not accepted.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation_error:
+              summary: Illustrative validation error envelope
+              value:
+                data: {}
+                message: Request validation failed.
+                error:
+                  type: validation
+                  key: amount
+                  message: Invalid or missing request field.
+                status: 400
+                version: 1.0.0
+    Unauthorized:
+      description: Missing or invalid Merchant API Key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Requested API resource or route was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Too many requests / API rate limit reached.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Unexpected server-side failure.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServiceUnavailable:
+      description: OxaPay or one of its required services is temporarily unavailable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

@@ -1,7 +1,7 @@
 ---
 title: "Generate Invoice"
 description: "Create a hosted OxaPay payment page and redirect your customer to complete a crypto payment."
-openapi: "/openapi/oxapay-generate-invoice-openapi.yaml POST /v1/payment/invoice"
+openapi: "/openapi/oxapay-generate-invoice-openapi.yaml POST /payment/invoice"
 ---
 
 Use **Generate Invoice** when you want OxaPay to host the checkout experience. Your backend creates the invoice, OxaPay returns a `payment_url`, and the payer opens that URL to choose a supported cryptocurrency and complete the payment.

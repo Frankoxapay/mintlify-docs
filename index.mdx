@@ -1,20 +1,401 @@
 ---
-title: "Introduction"
-description: "Welcome to your project"
+title: "OxaPay Developer Docs"
+description: "Accept crypto payments, create deposit addresses, send payouts, and swap digital assets with OxaPay."
+mode: "wide"
+sidebarTitle: "Introduction"
 ---
 
-Write a short description of your product here. What it does, who it's for, and what they can accomplish with it.
+<div className="not-prose mt-8 mb-12">
+  <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-center">
+    <div>
+      <h3 className="m-0 max-w-xl text-3xl font-semibold tracking-tight text-gray-950 dark:text-white">
+        Make your first payment
+      </h3>
+
+      <p className="mt-4 max-w-xl text-base leading-7 text-gray-600 dark:text-gray-400">
+        Create a sandbox invoice, receive a payment URL, and handle status
+        updates with webhooks. Add deposit addresses, payouts, or swaps as your
+        integration grows.
+      </p>
+
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Icon icon="check" size={12} />
+          </span>
+
+          Accept payments
+        </div>
+
+        <div className="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Icon icon="check" size={12} />
+          </span>
+
+          Create deposit addresses
+        </div>
+
+        <div className="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Icon icon="check" size={12} />
+          </span>
+
+          Automate payouts
+        </div>
+
+        <div className="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Icon icon="check" size={12} />
+          </span>
+
+          Swap assets
+        </div>
+      </div>
+
+      <div className="mt-7 flex flex-wrap items-center gap-3">
+        <a href="/quickstart" className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white no-underline transition hover:opacity-90">
+          Start building
+          <span>→</span>
+        </a>
+
+        <a href="/api-reference" className="inline-flex items-center gap-2 rounded-lg border border-primary px-5 py-2.5 text-sm font-semibold text-primary no-underline transition hover:bg-primary/5">
+          Explore APIs
+        </a>
+      </div>
+
+      <div className="mt-5 text-sm text-gray-500 dark:text-gray-400">
+        Prefer a ready-made integration?{" "}
+
+        <a href="/integrations" className="font-medium text-primary no-underline hover:underline">
+          Explore integrations
+        </a>
+      </div>
+    </div>
+
+    <div>
+      ```bash Create a sandbox payment
+      curl -X POST 'https://api.oxapay.com/v1/payment/invoice' \
+        -H 'merchant_api_key: YOUR_MERCHANT_API_KEY' \
+        -H 'Content-Type: application/json' \
+        -d '{
+          "amount": 49,
+          "currency": "USD",
+          "order_id": "order_1245",
+          "callback_url": "https://example.com/webhooks/oxapay",
+          "sandbox": true
+        }'
+      ```
+    </div>
+  </div>
+</div>
+
+---
+
+## OxaPay at a glance
+
+OxaPay is a crypto payment platform for accepting payments, receiving deposits, sending payouts, and swapping digital assets. Integrate these capabilities directly into websites, applications, and commerce platforms with REST APIs and webhooks, or move faster with SDKs, plugins, and automation tools.
+
+---
+
+## What do you want to build?
+
+Start with the workflow that matches your product. Each path takes you from the core concept to the relevant APIs and implementation guides.
+
+<Columns cols={2}>
+  <Card title="Accept payments" icon="credit-card" href="/payments" cta="Explore payments" arrow>
+    Create hosted invoices or build a white-label crypto checkout directly inside your product.
+  </Card>
+
+  <Card title="Receive deposits" icon="wallet" href="/payments" cta="Explore static addresses" arrow>
+    Generate reusable crypto deposit addresses for customer balances, account funding, and platform deposits.
+  </Card>
+
+  <Card title="Send payouts" icon="send" href="/payouts" cta="Explore payouts" arrow>
+    Automate crypto withdrawals, vendor payments, rewards, commissions, and other outgoing transfers.
+  </Card>
+
+  <Card title="Swap assets" icon="repeat" href="/swaps" cta="Explore swaps" arrow>
+    Convert supported assets programmatically using your OxaPay account balance and real-time swap APIs.
+  </Card>
+</Columns>
+
+---
+
+## From API call to confirmed payment
+
+A typical OxaPay payment flow is asynchronous. Your application creates the payment, OxaPay handles the payment session and blockchain monitoring, and your backend receives status updates through webhooks.
+
+<div className="not-prose my-8 overflow-x-auto">
+  <div className="flex min-w-[880px] items-start justify-between gap-2">
+    <div className="w-32 text-center">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-primary/20 bg-primary/5 text-primary dark:border-primary/20 dark:bg-primary/10 dark:text-primary">
+        <Icon icon="grid-2" size={20} />
+      </div>
+
+      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        Your app
+      </div>
+
+      <div className="mt-1 text-xs leading-5 text-gray-500">
+        Starts the checkout
+      </div>
+    </div>
+
+    <div className="mt-6 flex-1 border-t border-dashed border-primary/30 dark:border-primary/20" />
+
+    <div className="w-32 text-center">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-primary/20 bg-primary/5 text-primary dark:border-primary/20 dark:bg-primary/10 dark:text-primary">
+        <Icon icon="plus" size={20} />
+      </div>
+
+      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        Create payment
+      </div>
+
+      <div className="mt-1 text-xs leading-5 text-gray-500">
+        Call the Payments API
+      </div>
+    </div>
+
+    <div className="mt-6 flex-1 border-t border-dashed border-primary/30 dark:border-primary/20" />
+
+    <div className="w-32 text-center">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-primary/20 bg-primary/5 text-primary dark:border-primary/20 dark:bg-primary/10 dark:text-primary">
+        <Icon icon="credit-card" size={20} />
+      </div>
+
+      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        OxaPay checkout
+      </div>
+
+      <div className="mt-1 text-xs leading-5 text-gray-500">
+        Payment details are presented
+      </div>
+    </div>
+
+    <div className="mt-6 flex-1 border-t border-dashed border-primary/30 dark:border-primary/20" />
+
+    <div className="w-32 text-center">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-primary/20 bg-primary/5 text-primary dark:border-primary/20 dark:bg-primary/10 dark:text-primary">
+        <Icon icon="send" size={20} />
+      </div>
+
+      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        Customer pays
+      </div>
+
+      <div className="mt-1 text-xs leading-5 text-gray-500">
+        Crypto is sent onchain
+      </div>
+    </div>
+
+    <div className="mt-6 flex-1 border-t border-dashed border-primary/30 dark:border-primary/20" />
+
+    <div className="w-32 text-center">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-primary/20 bg-primary/5 text-primary dark:border-primary/20 dark:bg-primary/10 dark:text-primary">
+        <Icon icon="circle-check" size={20} />
+      </div>
+
+      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        Confirmation
+      </div>
+
+      <div className="mt-1 text-xs leading-5 text-gray-500">
+        Blockchain status is tracked
+      </div>
+    </div>
+
+    <div className="mt-6 flex-1 border-t border-dashed border-primary/30 dark:border-primary/20" />
+
+    <div className="w-32 text-center">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-primary/20 bg-primary/5 text-primary dark:border-primary/20 dark:bg-primary/10 dark:text-primary">
+        <Icon icon="webhook" size={20} />
+      </div>
+
+      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+        Webhook
+      </div>
+
+      <div className="mt-1 text-xs leading-5 text-gray-500">
+        Your backend receives the update
+      </div>
+    </div>
+  </div>
+</div>
+
+<Info>
+  Payment creation and payment confirmation are separate events. Use payment status updates or webhooks before fulfilling an order or crediting a user.
+</Info>
+
+---
+
+## Everything you need to build with OxaPay
+
+Go from an API key to a working test payment in three steps.
+
+<Columns cols={3}>
+  <Card title="1. Get an API key" icon="key">
+    Create a Merchant API Key in your OxaPay dashboard and keep it securely on your server.
+
+    [View authentication →](/authentication)
+  </Card>
+
+  <Card title="2. Create a test payment" icon="flask">
+    Call the Payments API with sandbox mode enabled and receive a payment session for testing.
+
+    [Start the quickstart →](/quickstart)
+  </Card>
+
+  <Card title="3. Handle the webhook" icon="webhook">
+    Receive payment status updates in your backend and update your application accordingly.
+
+    [Learn about webhooks →](/webhooks)
+  </Card>
+</Columns>
+
+<div className="not-prose my-6 flex justify-center">
+  <a href="/quickstart" className="inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white no-underline transition hover:bg-primary/90">
+    Start the payment quickstart
+    <span className="ml-2">→</span>
+  </a>
+</div>
+
+---
+
+## Choose how you want to integrate
+
+Use the level of abstraction that best fits your team and product.
+
+<Columns cols={3}>
+  <Card title="REST API" icon="code" href="/api-reference" cta="Explore API" arrow>
+    Full control over payment, payout, swap, and supporting workflows through OxaPay's HTTP APIs.
+  </Card>
+
+  <Card title="SDKs" icon="box" href="/sdks" cta="View SDKs" arrow>
+    Integrate OxaPay using official or supported SDKs for popular development environments.
+  </Card>
+
+  <Card title="Plugins & apps" icon="puzzle-piece" href="/integrations" cta="Browse integrations" arrow>
+    Launch faster with ready-made plugins and automation integrations instead of building from scratch.
+  </Card>
+</Columns>
+
+---
+
+## Plugins and no-code
+
+Not every OxaPay integration needs custom backend development. Use a ready-made plugin or automation tool when it better fits your workflow.
+
+<div className="not-prose my-5 flex flex-wrap gap-2">
+  <a href="/integrations" className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 no-underline hover:border-primary/30 hover:text-primary dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">WooCommerce</a>
+  <a href="/integrations" className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 no-underline hover:border-primary/30 hover:text-primary dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">WHMCS</a>
+  <a href="/integrations" className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 no-underline hover:border-primary/30 hover:text-primary dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">Magento</a>
+  <a href="/integrations" className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 no-underline hover:border-primary/30 hover:text-primary dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">Easy Digital Downloads</a>
+  <a href="/integrations" className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 no-underline hover:border-primary/30 hover:text-primary dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">Make</a>
+  <a href="/integrations" className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 no-underline hover:border-primary/30 hover:text-primary dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">And more</a>
+</div>
+
+<Card title="Looking for the fastest integration path?" icon="bolt" href="/integrations" cta="Browse all integrations" arrow>
+  Explore plugins, apps, and automation options before deciding whether you need a custom API integration.
+</Card>
+
+---
+
+## Developer essentials
+
+Everything you need to move from experimentation to a reliable production integration.
+
+<Columns cols={3}>
+  <Card title="Authentication" icon="lock" href="/authentication" arrow>
+    Learn how OxaPay API keys authenticate requests and how to keep credentials secure.
+  </Card>
+
+  <Card title="Webhooks" icon="webhook" href="/webhooks" arrow>
+    Receive asynchronous payment and transaction status updates in your backend.
+  </Card>
+
+  <Card title="Sandbox" icon="flask" href="/sandbox" arrow>
+    Test your integration and payment flows without processing live transactions.
+  </Card>
+
+  <Card title="API reference" icon="book-open" href="/api-reference" arrow>
+    Explore endpoints, authentication requirements, parameters, responses, and request examples.
+  </Card>
+
+  <Card title="Common APIs" icon="brackets-curly" href="/common-apis" arrow>
+    Access shared data and utilities used across OxaPay integrations.
+  </Card>
+
+  <Card title="SDKs" icon="box" href="/sdks" arrow>
+    Use developer libraries to reduce integration work in supported languages and frameworks.
+  </Card>
+</Columns>
+
+---
+
+## Supported assets and networks
+
+Build payment experiences with major cryptocurrencies and stablecoins across OxaPay-supported blockchain networks.
+
+<div className="not-prose my-5 flex flex-wrap items-center gap-2">
+  <Badge color="surface" shape="pill">BTC</Badge>
+  <Badge color="surface" shape="pill">ETH</Badge>
+  <Badge color="surface" shape="pill">USDT</Badge>
+  <Badge color="surface" shape="pill">USDC</Badge>
+  <Badge color="surface" shape="pill">TRX</Badge>
+  <Badge color="surface" shape="pill">BNB</Badge>
+  <Badge color="surface" shape="pill">LTC</Badge>
+  <Badge color="surface" shape="pill">SOL</Badge>
+</div>
+
+<Card title="Supported currencies and networks" icon="coins" href="/common-apis" cta="View supported assets" arrow>
+  Check the current list of supported cryptocurrencies, blockchain networks, payment options, and related limits before building your integration.
+</Card>
+
+---
+
+## Understand OxaPay API keys
+
+OxaPay separates credentials by capability. Use the key intended for the API you are calling.
+
+<Columns cols={3}>
+  <Card title="Merchant API Key" icon="credit-card">
+    Used for payment-related API operations such as invoices and static addresses.
+  </Card>
+
+  <Card title="Payout API Key" icon="send">
+    Used for sending payouts and accessing payout-related operations.
+  </Card>
+
+  <Card title="General API Key" icon="key">
+    Used for general account-level functionality such as Swap APIs.
+  </Card>
+</Columns>
 
 <Tip>
-  Ready to make this your own? Start by editing this page. Update your `docs.json` file to customize your site. Then fill out the [Quickstart](/quickstart) page.
+  Treat each API key as a sensitive server-side credential and grant access only to the systems that actually need it.
 </Tip>
 
-<Card title="Quickstart" icon="rocket" href="/quickstart">
-  This card links to the quickstart page in your project.
-</Card>
-<Card title="Components" icon="puzzle-piece" href="https://mintlify.com/docs/components">
-  Add cards, callouts, steps, tabs, and more to design and structure your pages.
-</Card>
-<Card title="Settings" icon="gear" href="https://mintlify.com/docs/organize/settings">
-  Set your site name, branding, and navigation in the `docs.json` file.
-</Card>
+---
+
+## Next steps
+
+Choose the path that matches what you want to build next.
+
+<Columns cols={4}>
+  <Card title="Payments" icon="credit-card" href="/payments" arrow>
+    Accept crypto and build customer payment flows.
+  </Card>
+
+  <Card title="Payouts" icon="send" href="/payouts" arrow>
+    Send crypto to users, partners, and external addresses.
+  </Card>
+
+  <Card title="Swaps" icon="repeat" href="/swaps" arrow>
+    Convert supported assets with OxaPay Swap APIs.
+  </Card>
+
+  <Card title="Webhooks" icon="webhook" href="/webhooks" arrow>
+    Receive real-time payment and transaction updates.
+  </Card>
+</Columns>

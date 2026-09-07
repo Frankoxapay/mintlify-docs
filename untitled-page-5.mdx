@@ -1,0 +1,342 @@
+---
+title: "Receive webhooks"
+description: "Create an HTTPS endpoint, connect it with callback_url, and receive your first OxaPay webhook."
+icon: "radio"
+---
+
+Receive webhook notifications by exposing a public HTTPS endpoint and passing its URL in the `callback_url` field of a supported OxaPay payment or payout request.
+
+This guide focuses on getting the delivery flow working end to end. Signature verification, payload details, retry behavior, and production troubleshooting are covered in the dedicated webhook guides.
+
+<Info>
+  For OxaPay API flows that support webhooks, the destination is supplied with the individual request through `callback_url`. You do not need to create a separate webhook subscription resource before receiving these callbacks.
+</Info>
+
+## Before you start
+
+You need:
+
+<Columns cols={2}>
+  <Card title="A public HTTPS endpoint" icon="globe">
+    A URL that OxaPay can reach from the public internet, such as `https://api.example.com/webhooks/oxapay/payments`.
+  </Card>
+
+  <Card title="An OxaPay API key" icon="key">
+    Use a **Merchant API Key** for payment requests or a **Payout API Key** for payout requests.
+  </Card>
+
+  <Card title="A supported API flow" icon="code">
+    Create a payment or payout request that accepts the `callback_url` field.
+  </Card>
+
+  <Card title="Raw request-body access" icon="file-code">
+    Your webhook handler should preserve the exact request body so you can verify the `HMAC` signature before processing it.
+  </Card>
+</Columns>
+
+## Choose your endpoint structure
+
+You can send multiple OxaPay webhook types to one endpoint, but separate payment and payout routes are easier to secure and maintain.
+
+### Recommended
+
+```text
+https://api.example.com/webhooks/oxapay/payments
+https://api.example.com/webhooks/oxapay/payouts
+```
+
+Payment webhooks are signed with your **Merchant API Key**, while payout webhooks are signed with your **Payout API Key**. Using separate routes lets each handler know which key to use before it trusts any webhook payload data.
+
+<Tip>
+  If your application only uses payments, a single route such as `/webhooks/oxapay` is perfectly reasonable. The important part is that the route is public, uses HTTPS, preserves the raw body, and verifies every webhook before processing it.
+</Tip>
+
+<Warning>
+  If one endpoint receives both payment and payout webhooks, do not choose the signing key solely from an unverified `type` field in the request body. Verify the request before trusting payload fields. The signature guide covers safe patterns for shared endpoints.
+</Warning>
+
+## Receive your first webhook
+
+<Steps>
+  <Step title="Create the webhook route">
+    Add an HTTP `POST` route to your backend.
+
+    The examples below intentionally preserve the **raw request body** and read the `HMAC` header so the same endpoint can be secured in the next guide.
+
+    <Warning>
+      These examples only confirm that your endpoint can receive a webhook. They do **not** verify the HMAC signature yet. Do not run business logic from an unverified payload in production.
+    </Warning>
+
+    <CodeGroup>
+
+    ```javascript Node.js
+    import express from "express";
+    
+    const app = express();
+    
+    app.post(
+      "/webhooks/oxapay/payments",
+      express.raw({ type: "application/json" }),
+      (req, res) => {
+        const rawBody = req.body; // Buffer
+        const hmacHeader = req.get("HMAC");
+    
+        console.log("Received OxaPay webhook");
+        console.log("HMAC:", hmacHeader);
+        console.log("Raw body:", rawBody.toString("utf8"));
+    
+        // Verify the HMAC before parsing or processing the payload.
+        // See: /webhooks/verify-signatures
+    
+        res.status(200).type("text/plain").send("ok");
+      }
+    );
+    
+    app.listen(3000, () => {
+      console.log("Webhook server listening on port 3000");
+    });
+    ```
+
+    ```python Python
+    from flask import Flask, request, Response
+    
+    app = Flask(__name__)
+    
+    @app.post("/webhooks/oxapay/payments")
+    def receive_oxapay_webhook():
+        raw_body = request.get_data(cache=True)
+        hmac_header = request.headers.get("HMAC")
+    
+        print("Received OxaPay webhook")
+        print("HMAC:", hmac_header)
+        print("Raw body:", raw_body.decode("utf-8"))
+    
+        # Verify the HMAC before parsing or processing the payload.
+        # See: /webhooks/verify-signatures
+    
+        return Response("ok", status=200, mimetype="text/plain")
+    
+    if __name__ == "__main__":
+        app.run(port=3000)
+    ```
+
+    ```php PHP
+    <?php
+    
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        exit;
+    }
+    
+    $rawBody = file_get_contents('php://input');
+    $hmacHeader = $_SERVER['HTTP_HMAC'] ?? '';
+    
+    error_log('Received OxaPay webhook');
+    error_log('HMAC: ' . $hmacHeader);
+    error_log('Raw body: ' . $rawBody);
+    
+    // Verify the HMAC before decoding or processing the payload.
+    // See: /webhooks/verify-signatures
+    
+    http_response_code(200);
+    header('Content-Type: text/plain');
+    echo 'ok';
+    ```
+
+    </CodeGroup>
+  </Step>
+  <Step title="Make the endpoint publicly reachable">
+    OxaPay must be able to reach your webhook URL from the public internet.
+
+    A production URL could look like:
+
+    ```text
+    https://api.example.com/webhooks/oxapay/payments
+    ```
+
+    OxaPay does not send payment callbacks directly to private network addresses such as `localhost`.
+
+    For an initial connectivity test, you can use a temporary request inspector such as `webhook.site` or `requestcatcher.com`. For local development, expose your local server through a secure HTTPS tunnel.
+
+    <Info>
+      Temporary request-inspection services are useful for checking delivery, but they should not be used as production webhook endpoints because webhook payloads contain transaction information.
+    </Info>
+  </Step>
+  <Step title="Set callback_url on the API request">
+    Pass the public endpoint in the `callback_url` field when you create the transaction.
+
+    For example, create an invoice with a payment webhook endpoint:
+
+    ```bash
+    curl --request POST \
+      --url https://api.oxapay.com/v1/payment/invoice \
+      --header 'Content-Type: application/json' \
+      --header 'merchant_api_key: YOUR_MERCHANT_API_KEY' \
+      --data '{
+        "amount": 10,
+        "order_id": "ORD-12345",
+        "callback_url": "https://api.example.com/webhooks/oxapay/payments",
+        "sandbox": true
+      }'
+    ```
+
+    OxaPay associates the supplied `callback_url` with that payment and uses it for the corresponding webhook notifications.
+
+    <Note>
+      Payout requests use the same `callback_url` concept. For payouts, point the field to your payout route, for example `https://api.example.com/webhooks/oxapay/payouts`.
+    </Note>
+  </Step>
+  <Step title="Trigger a transaction update">
+    Continue the payment or payout flow until OxaPay has an update to deliver.
+
+    For payments, the current webhook flow sends notifications as the payment progresses through the relevant processing states. A payment can first arrive with `paying` and later with `paid`.
+
+    <Warning>
+      Do not fulfill an order from the `paying` notification. Wait until the payment reaches `paid` before treating it as successfully completed.
+    </Warning>
+  </Step>
+  <Step title="Inspect the incoming request">
+    OxaPay sends the webhook as an HTTP `POST` request with a JSON body and an `HMAC` request header.
+
+    Conceptually, the request looks like this:
+
+    ```http
+    POST /webhooks/oxapay/payments HTTP/1.1
+    Host: api.example.com
+    Content-Type: application/json
+    HMAC: <sha512-signature>
+    
+    {
+      "track_id": "151811887",
+      "status": "paying",
+      "type": "invoice",
+      "amount": 10,
+      "order_id": "ORD-12345",
+      ...
+    }
+    ```
+
+    The example body is shortened for readability. Payment and payout payloads contain different fields and are documented separately.
+
+    <Info>
+      Header names are case-insensitive at the HTTP protocol level, although your framework may normalize them. Read the header using your framework's normal header API rather than relying on a specific casing in the internal request object.
+    </Info>
+  </Step>
+  <Step title="Return the required acknowledgement">
+    When your endpoint has successfully accepted the webhook, respond with HTTP `200` and the plain-text body:
+
+    ```text
+    ok
+    ```
+
+    Example response:
+
+    ```http
+    HTTP/1.1 200 OK
+    Content-Type: text/plain
+    
+    ok
+    ```
+
+    OxaPay treats this acknowledgement as a successful delivery. If delivery is not acknowledged successfully, OxaPay may retry the webhook.
+  </Step>
+</Steps>
+
+<Check>
+  If your endpoint receives the `POST` request and OxaPay receives `200` with `ok`, the basic delivery path is working.
+</Check>
+
+## Endpoint requirements
+
+Use this checklist when configuring your webhook route.
+
+| Requirement | Expected behavior |
+| --- | --- |
+| **Protocol** | HTTPS |
+| **Method** | `POST` |
+| **Content type** | `application/json` |
+| **Network access** | Publicly reachable from the internet |
+| **Private localhost URL** | Not supported for direct callback delivery |
+| **Signature header** | `HMAC` |
+| **Request body** | Preserve the raw body for signature verification |
+| **Successful response** | HTTP `200` with plain-text body `ok` |
+
+## Keep callback_url separate from return_url
+
+For payment flows that support both fields, they serve different purposes:
+
+| Field | Used by | Purpose |
+| --- | --- | --- |
+| `callback_url` | OxaPay servers | Sends server-to-server transaction updates to your backend |
+| `return_url` | Payer's browser | Redirects the payer after the payment flow |
+
+A browser arriving at `return_url` is not proof that a payment succeeded.
+
+<Warning>
+  Never mark an order as paid from the browser redirect alone. Use a **verified webhook** with the appropriate final status, or retrieve the latest payment information from the API.
+</Warning>
+
+## Before processing the payload
+
+Receiving a webhook is only the first part of the integration.
+
+Do not use fields such as `status`, `amount`, `track_id`, `order_id`, `address`, or `type` to change application state until the request has passed signature verification.
+
+The secure processing order is:
+
+```text
+Receive request
+      ↓
+Preserve raw body
+      ↓
+Read HMAC header
+      ↓
+Verify signature
+      ↓
+Parse trusted payload
+      ↓
+Apply business logic
+      ↓
+Return 200 + ok
+```
+
+<Card title="Verify webhook signatures" icon="shield-check" href="/webhooks/verify-signatures" cta="Secure your webhook endpoint" arrow="true">
+  Learn how to calculate the HMAC-SHA512 signature from the raw request body and compare it safely with the `HMAC` header.
+</Card>
+
+## If your first webhook does not arrive
+
+Check the basics before debugging application logic:
+
+1. Confirm that the exact public HTTPS URL was sent in `callback_url`.
+2. Confirm that the endpoint accepts HTTP `POST` requests.
+3. Make sure the URL is reachable from the public internet and is not a private or localhost address.
+4. Check your reverse proxy, firewall, WAF, or Cloudflare configuration for blocked inbound requests.
+5. Confirm that your route returns HTTP `200` with `ok` after successful receipt.
+6. Inspect your application and proxy logs for incoming requests or route errors.
+
+For local tunnels, delivery retries, firewall issues, and more detailed diagnostics, continue to the troubleshooting guide.
+
+<Card title="Testing & troubleshooting" icon="wrench" href="/webhooks/testing-troubleshooting" arrow="true">
+  Test webhook delivery and diagnose common endpoint, networking, signature, and acknowledgement problems.
+</Card>
+
+## Related guides
+
+<Columns cols={2}>
+  <Card title="Payment webhooks" icon="credit-card" href="/webhooks/payment-webhooks" arrow="true">
+    Review payment webhook payloads, transaction types, statuses, and fulfillment behavior.
+  </Card>
+
+  <Card title="Payout webhooks" icon="send" href="/webhooks/payout-webhooks" arrow="true">
+    Review payout webhook payloads and payout-specific status updates.
+  </Card>
+
+  <Card title="Delivery & retries" icon="rotate" href="/webhooks/delivery-retries" arrow="true">
+    Understand acknowledgement behavior, retry timing, and reliable webhook processing.
+  </Card>
+
+  <Card title="Webhook overview" icon="webhook" href="/webhooks/overview" arrow="true">
+    Return to the webhook architecture and core concepts.
+  </Card>
+</Columns>

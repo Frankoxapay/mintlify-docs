@@ -31,7 +31,54 @@
           "icon": "newspaper"
         }
       ]
-    }
+    },
+    "tabs": [
+      {
+        "tab": "Docs",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "index",
+              "untitled-page"
+            ]
+          },
+          {
+            "group": "Payments",
+            "pages": [
+              "untitled-page-2"
+            ]
+          },
+          {
+            "group": "Webhooks",
+            "pages": [
+              "untitled-page-4",
+              "untitled-page-5"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Payments",
+            "pages": [
+              "untitled-page-3"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "SDKs"
+      },
+      {
+        "tab": "Integrations"
+      },
+      {
+        "tab": "Changelogs"
+      }
+    ]
   },
   "logo": {
     "light": "/logo/light.svg",

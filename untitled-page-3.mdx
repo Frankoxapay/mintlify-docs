@@ -1,0 +1,15 @@
+---
+title: "Generate Invoice"
+description: "Create a hosted OxaPay payment page and redirect your customer to complete a crypto payment."
+openapi: "/openapi/oxapay-generate-invoice-openapi.yaml POST /v1/payment/invoice"
+---
+
+Use **Generate Invoice** when you want OxaPay to host the checkout experience. Your backend creates the invoice, OxaPay returns a `payment_url`, and the payer opens that URL to choose a supported cryptocurrency and complete the payment.
+
+<Note>
+  If you need to keep the payment UI inside your own application and receive the payment address, amount, currency, network, and QR details directly, use [Generate White Label](/api-reference/payment/generate-white-label) instead.
+</Note>
+
+<Tip>
+  Supported assets, fiat currencies, and networks can change over time. Use [Supported Currencies](https://stalonea.mintlifysite.com/api-reference/common/supported-currencies) and [Supported Fiat Currencies](https://stalonea.mintlifysite.com/api-reference/common/supported-fiat-currencies) to retrieve the currencies, networks, and OxaPay API-accepted symbols and identifiers. Build selectors from these endpoints instead of hard-coding a permanent lis
+</Tip>
